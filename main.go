@@ -135,7 +135,13 @@ func fetchFeed(folder string) (*JSONFeed, error) {
 	}
 
 	seqset := new(imap.SeqSet)
-	seqset.AddRange(1, mbox.Messages)
+	// limit to last 25 messages
+	total := mbox.Messages
+	var from uint32 = 1
+	if total > 25 {
+		from = total - 25 + 1
+	}
+	seqset.AddRange(from, total)
 
 	section := &imap.BodySectionName{}
 	items := []imap.FetchItem{imap.FetchEnvelope, section.FetchItem()}
@@ -162,8 +168,12 @@ func fetchFeed(folder string) (*JSONFeed, error) {
 				var htmlBody, textBody string
 				for {
 					p, err := mr.NextPart()
-					if err == io.EOF { break }
-					if err != nil { continue }
+					if err == io.EOF {
+						break
+					}
+					if err != nil {
+						continue
+					}
 					ctHeader := p.Header.Get("Content-Type")
 					mediaType, _, parseErr := mime.ParseMediaType(ctHeader)
 					if parseErr != nil {
@@ -173,9 +183,13 @@ func fetchFeed(folder string) (*JSONFeed, error) {
 					body := string(bodyBytes)
 					switch mediaType {
 					case "text/html":
-						if htmlBody == "" { htmlBody = body }
+						if htmlBody == "" {
+							htmlBody = body
+						}
 					case "text/plain":
-						if textBody == "" { textBody = body }
+						if textBody == "" {
+							textBody = body
+						}
 					}
 				}
 				item.ContentHTML = htmlBody
