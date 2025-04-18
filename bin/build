@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# buildx builder container name
+BUILDER="multiarch-builder"
+# default tag is "edge", or override with first argument
+TAG="${1:-edge}"
+
+# remote image name
+REMOTE_IMAGE="ghcr.io/philtr/blueshorts"
+
+# create and select buildx builder if it doesn't exist
+if ! docker buildx inspect "$BUILDER" >/dev/null 2>&1; then
+	echo "> creating buildx builder: $BUILDER"
+	docker buildx create --use --name "$BUILDER"
+else
+	echo "> using existing buildx builder: $BUILDER"
+	docker buildx use "$BUILDER"
+fi
+
+# assemble remote tags
+TAGS=(
+	-t "${REMOTE_IMAGE}:${TAG}"
+)
+
+# if version isn't 'edge', also tag as latest remotely
+if [[ "$TAG" != "edge" ]]; then
+	TAGS+=(
+		-t "${REMOTE_IMAGE}:latest"
+	)
+fi
+
+# build and push multi-arch images
+echo "> building and pushing remote images for tag: $TAG"
+docker buildx build \
+	--platform linux/amd64,linux/arm64 \
+	"${TAGS[@]}" \
+	--push \
+	.
