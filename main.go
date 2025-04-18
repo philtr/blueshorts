@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"strings"
@@ -15,8 +16,7 @@ import (
 )
 
 // Config holds server, IMAP and feed settings
-// config is expected at data/config.toml
-
+// config is expected at /data/config.toml
 type Config struct {
 	Server struct {
 		APIKey string `toml:"api_key"`
@@ -60,7 +60,7 @@ var (
 )
 
 func main() {
-	// Load configuration from data/config.toml
+	// Load configuration from /data/config.toml
 	if _, err := toml.DecodeFile("/data/config.toml", &config); err != nil {
 		log.Fatalf("Error loading config: %v", err)
 	}
@@ -99,7 +99,7 @@ func feedHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	mu.Unlock()
 
-	// fetch new feed
+	// fetch new feed with bodies
 	feed, err := fetchFeed(imapFolder)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Error fetching feed: %v", err), http.StatusInternalServerError)
@@ -142,19 +142,23 @@ func fetchFeed(folder string) (*JSONFeed, error) {
 		return nil, err
 	}
 
-	// fetch all messages
+	// fetch all messages with body
 	seqset := new(imap.SeqSet)
 	seqset.AddRange(1, mbox.Messages)
+
+	section := &imap.BodySectionName{}
+	items := []imap.FetchItem{imap.FetchEnvelope, section.FetchItem()}
 
 	messages := make(chan *imap.Message, 10)
 	done := make(chan error, 1)
 	go func() {
-		done <- c.Fetch(seqset, []imap.FetchItem{imap.FetchEnvelope}, messages)
+		done <- c.Fetch(seqset, items, messages)
 	}()
 
 	feed := &JSONFeed{
 		Version: "https://jsonfeed.org/version/1",
 		Title:   fmt.Sprintf("IMAP: %s", folder),
+		Items:   []Message{},
 	}
 
 	for msg := range messages {
@@ -162,7 +166,16 @@ func fetchFeed(folder string) (*JSONFeed, error) {
 			ID:          msg.Envelope.MessageId,
 			Title:       msg.Envelope.Subject,
 			Date:        msg.Envelope.Date,
-			ContentText: "", // body fetching can be added here
+			ContentText: "",
+		}
+		// extract body
+		if r := msg.GetBody(section); r != nil {
+			buf, err := io.ReadAll(r)
+			if err == nil {
+				item.ContentText = string(buf)
+			} else {
+				log.Printf("Error reading body: %v", err)
+			}
 		}
 		feed.Items = append(feed.Items, item)
 	}
