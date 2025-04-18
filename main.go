@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"mime"
 	"net/http"
 	"strings"
 	"sync"
@@ -13,6 +14,7 @@ import (
 	"github.com/BurntSushi/toml"
 	"github.com/emersion/go-imap"
 	imapClient "github.com/emersion/go-imap/client"
+	"github.com/emersion/go-message/mail"
 )
 
 // Config holds server, IMAP and feed settings
@@ -38,10 +40,11 @@ type Message struct {
 	Title       string    `json:"title"`
 	URL         string    `json:"url,omitempty"`
 	Date        time.Time `json:"date_published"`
-	ContentText string    `json:"content_text"`
+	ContentHTML string    `json:"content_html,omitempty"`
+	ContentText string    `json:"content_text,omitempty"`
 }
 
-// JSONFeed conforms to JSON Feed spec v1
+// JSONFeed conforms to JSON Feed spec v1.1
 type JSONFeed struct {
 	Version     string    `json:"version"`
 	Title       string    `json:"title"`
@@ -55,12 +58,10 @@ var (
 	cache    = make(map[string]JSONFeed)
 	cacheExp = make(map[string]time.Time)
 	mu       sync.Mutex
-	// simple TTL cache
 	cacheTTL = 5 * time.Minute
 )
 
 func main() {
-	// Load configuration from /data/config.toml
 	if _, err := toml.DecodeFile("/data/config.toml", &config); err != nil {
 		log.Fatalf("Error loading config: %v", err)
 	}
@@ -72,14 +73,12 @@ func main() {
 }
 
 func feedHandler(w http.ResponseWriter, r *http.Request) {
-	// API key check
 	key := r.URL.Query().Get("key")
 	if key != config.Server.APIKey {
 		http.Error(w, "Forbidden", http.StatusForbidden)
 		return
 	}
 
-	// extract feed name from URL
 	parts := strings.Split(strings.TrimPrefix(r.URL.Path, "/feeds/"), ".")
 	feedName := parts[0]
 	imapFolder, ok := config.Feeds[feedName]
@@ -88,25 +87,21 @@ func feedHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// serve from cache if fresh
 	mu.Lock()
 	exp, found := cacheExp[feedName]
 	if found && time.Now().Before(exp) {
-		feed := cache[feedName]
+		jsonResponse(w, cache[feedName])
 		mu.Unlock()
-		jsonResponse(w, feed)
 		return
 	}
 	mu.Unlock()
 
-	// fetch new feed with bodies
 	feed, err := fetchFeed(imapFolder)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Error fetching feed: %v", err), http.StatusInternalServerError)
 		return
 	}
 
-	// cache it
 	mu.Lock()
 	cache[feedName] = *feed
 	cacheExp[feedName] = time.Now().Add(cacheTTL)
@@ -123,7 +118,6 @@ func jsonResponse(w http.ResponseWriter, feed JSONFeed) {
 }
 
 func fetchFeed(folder string) (*JSONFeed, error) {
-	// connect to IMAP
 	addr := fmt.Sprintf("%s:%d", config.IMAP.Host, config.IMAP.Port)
 	c, err := imapClient.DialTLS(addr, nil)
 	if err != nil {
@@ -131,18 +125,15 @@ func fetchFeed(folder string) (*JSONFeed, error) {
 	}
 	defer c.Logout()
 
-	// login
 	if err := c.Login(config.IMAP.Username, config.IMAP.Password); err != nil {
 		return nil, err
 	}
 
-	// select folder
 	mbox, err := c.Select(folder, true)
 	if err != nil {
 		return nil, err
 	}
 
-	// fetch all messages with body
 	seqset := new(imap.SeqSet)
 	seqset.AddRange(1, mbox.Messages)
 
@@ -151,30 +142,44 @@ func fetchFeed(folder string) (*JSONFeed, error) {
 
 	messages := make(chan *imap.Message, 10)
 	done := make(chan error, 1)
-	go func() {
-		done <- c.Fetch(seqset, items, messages)
-	}()
+	go func() { done <- c.Fetch(seqset, items, messages) }()
 
 	feed := &JSONFeed{
-		Version: "https://jsonfeed.org/version/1",
-		Title:   fmt.Sprintf("IMAP: %s", folder),
+		Version: "https://jsonfeed.org/version/1.1",
+		Title:   strings.TrimPrefix(folder, "/"),
 		Items:   []Message{},
 	}
 
 	for msg := range messages {
 		item := Message{
-			ID:          msg.Envelope.MessageId,
-			Title:       msg.Envelope.Subject,
-			Date:        msg.Envelope.Date,
-			ContentText: "",
+			ID:    msg.Envelope.MessageId,
+			Title: msg.Envelope.Subject,
+			Date:  msg.Envelope.Date,
 		}
-		// extract body
 		if r := msg.GetBody(section); r != nil {
-			buf, err := io.ReadAll(r)
+			mr, err := mail.CreateReader(r)
 			if err == nil {
-				item.ContentText = string(buf)
-			} else {
-				log.Printf("Error reading body: %v", err)
+				var htmlBody, textBody string
+				for {
+					p, err := mr.NextPart()
+					if err == io.EOF { break }
+					if err != nil { continue }
+					ctHeader := p.Header.Get("Content-Type")
+					mediaType, _, parseErr := mime.ParseMediaType(ctHeader)
+					if parseErr != nil {
+						mediaType = strings.ToLower(strings.Split(ctHeader, ";")[0])
+					}
+					bodyBytes, _ := io.ReadAll(p.Body)
+					body := string(bodyBytes)
+					switch mediaType {
+					case "text/html":
+						if htmlBody == "" { htmlBody = body }
+					case "text/plain":
+						if textBody == "" { textBody = body }
+					}
+				}
+				item.ContentHTML = htmlBody
+				item.ContentText = textBody
 			}
 		}
 		feed.Items = append(feed.Items, item)
