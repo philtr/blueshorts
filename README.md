@@ -115,14 +115,14 @@ within TTL serve cached results.
 Server logs are printed to stdout, including startup info, errors, and fetch
 operations.
 
-## Disclamer
+## Disclaimer
 
 This software was heavily assisted by generative AI tools during its
 development. While I’ve reviewed and tested the code to the best of my ability,
 **I make no guarantees regarding its correctness, security, reliability, or
 fitness for any particular purpose.**
 
-_**Use at your own risk. Contributions and bug reports are welcome.**_
+⚠️ _**Use at your own risk. Contributions and bug reports are welcome.**_
 
 ## License (MIT)
 
