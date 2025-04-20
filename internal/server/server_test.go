@@ -1,6 +1,8 @@
-package main
+package server_test
 
 import (
+	"blueshorts/internal/model"
+	"blueshorts/internal/server"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -8,37 +10,30 @@ import (
 	"time"
 )
 
-// reset clears globals but does NOT overwrite the fetch func.
-func reset() {
-	cache = make(map[string]JSONFeed)
-	cacheExp = make(map[string]time.Time)
-	// leave `fetch` alone; each test decides what it should be
-}
-
+// returns an httptest.Server with a stubbed fetcher.
 func stubServer(t *testing.T, hits *int) *httptest.Server {
 	t.Helper()
 
-	reset() // first, clear caches + keep fetch=whatever
-
-	// now stub fetch
-	fetch = func(string) (*JSONFeed, error) {
+	stubFetch := func(string) (*model.JSONFeed, error) {
 		*hits++
-		return &JSONFeed{
+		return &model.JSONFeed{
 			Version: "https://jsonfeed.org/version/1.1",
 			Title:   "INBOX",
-			Items:   []Message{{ID: "1", Title: "hi", Date: time.Now()}},
+			Items: []model.Message{
+				{ID: "1", Title: "hi", Date: time.Now()},
+			},
 		}, nil
 	}
 
-	cfg := Config{
-		Server: struct {
-			APIKey string `toml:"api_key"`
-		}{APIKey: "secret"},
-		Feeds: map[string]string{"inbox": "INBOX"},
-	}
+	h := server.New(server.Options{
+		APIKey: "secret",
+		Feeds:  map[string]string{"inbox": "INBOX"},
+		Fetch:  stubFetch,
+		TTL:    time.Hour,
+	})
 
-	ts := httptest.NewServer(newServer(cfg))
-	t.Cleanup(func() { ts.Close(); reset() })
+	ts := httptest.NewServer(h)
+	t.Cleanup(ts.Close)
 	return ts
 }
 
@@ -53,7 +48,7 @@ func TestOK(t *testing.T) {
 	if res.StatusCode != http.StatusOK {
 		t.Fatalf("want 200 got %d", res.StatusCode)
 	}
-	var feed JSONFeed
+	var feed model.JSONFeed
 	if err := json.NewDecoder(res.Body).Decode(&feed); err != nil {
 		t.Fatalf("bad json: %v", err)
 	}
