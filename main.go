@@ -61,15 +61,23 @@ var (
 	cacheTTL = 5 * time.Minute
 )
 
+var fetch = fetchFeed // default impl
+
+func newServer(cfg Config) http.Handler {
+	config = cfg
+	mux := http.NewServeMux()
+	mux.HandleFunc("/feeds/", feedHandler)
+	return mux
+}
+
 func main() {
 	if _, err := toml.DecodeFile("/data/config.toml", &config); err != nil {
 		log.Fatalf("Error loading config: %v", err)
 	}
 
-	http.HandleFunc("/feeds/", feedHandler)
 	addr := ":8080"
 	log.Printf("Listening on %s...", addr)
-	log.Fatal(http.ListenAndServe(addr, nil))
+	log.Fatal(http.ListenAndServe(addr, newServer(config)))
 }
 
 func feedHandler(w http.ResponseWriter, r *http.Request) {
@@ -96,7 +104,7 @@ func feedHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	mu.Unlock()
 
-	feed, err := fetchFeed(imapFolder)
+	feed, err := fetch(imapFolder)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Error fetching feed: %v", err), http.StatusInternalServerError)
 		return
