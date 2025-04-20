@@ -12,6 +12,19 @@ import (
 	"github.com/emersion/go-message/mail"
 )
 
+// dialTLS is a seam for testing; overwrite it in tests to return a stub client.
+var dialTLS = func(addr string) (client, error) {
+	return imapClient.DialTLS(addr, nil)
+}
+
+// client defines just the methods fetch uses, making it easy to stub.
+type client interface {
+	Login(user, pass string) error
+	Logout() error
+	Select(name string, readOnly bool) (*imap.MailboxStatus, error)
+	Fetch(seq *imap.SeqSet, items []imap.FetchItem, ch chan *imap.Message) error
+}
+
 type Config struct {
 	Host     string
 	Port     int
@@ -29,7 +42,8 @@ func NewFetcher(cfg Config) func(folder string) (*model.JSONFeed, error) {
 
 func fetch(cfg Config, folder string) (*model.JSONFeed, error) {
 	addr := fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
-	c, err := imapClient.DialTLS(addr, nil)
+
+	c, err := dialTLS(addr)
 	if err != nil {
 		return nil, err
 	}
@@ -45,7 +59,6 @@ func fetch(cfg Config, folder string) (*model.JSONFeed, error) {
 	}
 
 	seqset := new(imap.SeqSet)
-	// limit to last 25 messages
 	total := mbox.Messages
 	var from uint32 = 1
 	if total > 25 {
