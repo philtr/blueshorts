@@ -90,8 +90,16 @@ services:
 
 ### Local Development (requires Go)
 
+Copy the example config file and edit it with your values:
+
 ```bash
-# install deps and run
+cp config.toml.example config.toml
+# edit config.toml and fill in your values
+```
+
+Install dependencies and run:
+
+```bash
 go mod tidy
 go run main.go
 ```
