@@ -8,17 +8,17 @@ import (
 
 const goodTOML = `
 [server]
-api_key = "secret"
+api_key = "your-secret-api-key"
 
 [imap]
-host = "imap.example.com"
-port = 993
-username = "user"
-password = "pass"
+host     = "imap.example.com"
+port     = 993
+username = "you@example.com"
+password = "hunter2"
 
 [feeds]
-"Inbox"  = "https://example.com/inbox.json"
-"Alerts" = "https://example.com/alerts.json"
+news   = "Newsletters"
+alerts = "Notifications/Alerts"
 `
 
 func tmpFile(t *testing.T, content string) string {
@@ -39,14 +39,14 @@ func TestLoad_Valid(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if cfg.Server.APIKey != "secret" {
+	if cfg.Server.APIKey != "your-secret-api-key" {
 		t.Fatalf("api_key mismatch: %q", cfg.Server.APIKey)
 	}
 
 	if cfg.IMAP.Host != "imap.example.com" ||
 		cfg.IMAP.Port != 993 ||
-		cfg.IMAP.Username != "user" ||
-		cfg.IMAP.Password != "pass" {
+		cfg.IMAP.Username != "you@example.com" ||
+		cfg.IMAP.Password != "hunter2" {
 		t.Fatalf("imap section mismatch: %+v", cfg.IMAP)
 	}
 

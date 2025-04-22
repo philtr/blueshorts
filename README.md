@@ -27,8 +27,8 @@ includes:
 
 ## Configuration
 
-Create a TOML file at `/data/config.toml` (this is not currently configurable...
-pull requests welcome!) with the following structure:
+Create a TOML file at `./config.toml` or specify a file path with
+`BLUESHORTS_CONFIG` with the following structure:
 
 ```toml
 [server]

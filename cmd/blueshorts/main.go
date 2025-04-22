@@ -13,7 +13,7 @@ import (
 func main() {
 	configPath := os.Getenv("BLUESHORTS_CONFIG")
 	if configPath == "" {
-		configPath = "/data/config.toml"
+		configPath = "./config.toml"
 	}
 
 	cfg, err := config.Load(configPath)

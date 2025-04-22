@@ -1,0 +1,12 @@
+[server]
+api_key = "your-secret-api-key"
+
+[imap]
+host     = "imap.example.com"
+port     = 993
+username = "you@example.com"
+password = "hunter2"
+
+[feeds]
+news   = "Newsletters"
+alerts = "Notifications/Alerts"
