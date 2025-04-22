@@ -2,7 +2,7 @@
 FROM golang:1.24.2-alpine AS builder
 WORKDIR /src
 COPY . .
-RUN go build -o blueshorts
+RUN go build -o blueshorts ./cmd/blueshorts
 
 # runtime stage
 FROM alpine:latest
