@@ -6,11 +6,17 @@ import (
 	"blueshorts/internal/server"
 	"log"
 	"net/http"
+	"os"
 	"time"
 )
 
 func main() {
-	cfg, err := config.Load("/data/config.toml")
+	configPath := os.Getenv("BLUESHORTS_CONFIG")
+	if configPath == "" {
+		configPath = "/data/config.toml"
+	}
+
+	cfg, err := config.Load(configPath)
 	if err != nil {
 		log.Fatalf("loading config: %v", err)
 	}
