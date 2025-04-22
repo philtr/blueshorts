@@ -7,14 +7,12 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 )
 
 func main() {
-	configPath := os.Getenv("BLUESHORTS_CONFIG")
-	if configPath == "" {
-		configPath = "./config.toml"
-	}
+	configPath := getEnv("BLUESHORTS_CONFIG", "./config.toml")
 
 	cfg, err := config.Load(configPath)
 	if err != nil {
@@ -22,18 +20,36 @@ func main() {
 	}
 
 	fetch := imap.NewFetcher(imap.Config{
-		Host:     cfg.IMAP.Host,
-		Port:     cfg.IMAP.Port,
-		Username: cfg.IMAP.Username,
-		Password: cfg.IMAP.Password,
+		Host:     getEnv("BLUESHORTS_IMAP_HOST", cfg.IMAP.Host),
+		Port:     getEnvInt("BLUESHORTS_IMAP_PORT", cfg.IMAP.Port),
+		Username: getEnv("BLUESHORTS_IMAP_USER", cfg.IMAP.Username),
+		Password: getEnv("BLUESHORTS_IMAP_PASS", cfg.IMAP.Password),
 	})
 
 	srv := server.New(server.Options{
-		APIKey: cfg.Server.APIKey,
+		APIKey: getEnv("BLUESHORTS_SERVER_API_KEY", cfg.Server.APIKey),
 		Feeds:  cfg.Feeds,
 		Fetch:  fetch,
 		TTL:    5 * time.Minute,
 	})
 
 	log.Fatal(http.ListenAndServe(":8080", srv))
+}
+
+func getEnv(key, fallback string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+
+	return fallback
+}
+
+func getEnvInt(key string, fallback int) int {
+	if val := os.Getenv(key); val != "" {
+		if intval, err := strconv.Atoi(val); err == nil {
+			return intval
+		}
+	}
+
+	return fallback
 }

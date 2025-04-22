@@ -49,6 +49,21 @@ alerts = "Notifications/Alerts"
 - **imap**: connection settings for your IMAP server.
 - **feeds**: map of feed names to IMAP folder paths.
 
+### Environment Variables
+
+In addition to the TOML config file, you can override certain configuration
+values using environment variables. This is useful for containerized deployments
+or secrets management.
+
+- `BLUESHORTS_CONFIG`: path to the config file (defaults to `/data/config.toml`)
+- `BLUESHORTS_IMAP_HOST`: overrides `[imap].host`
+- `BLUESHORTS_IMAP_PORT`: overrides `[imap].port`
+- `BLUESHORTS_IMAP_USERNAME`: overrides `[imap].username`
+- `BLUESHORTS_IMAP_PASSWORD`: overrides `[imap].password`
+- `BLUESHORTS_SERVER_API_KEY`: overrides `[server].api_key`
+
+Environment variables take precedence over values from the TOML file.
+
 ## Usage
 
 ### Docker
