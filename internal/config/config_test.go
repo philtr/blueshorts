@@ -8,6 +8,7 @@ import (
 
 const goodTOML = `
 [server]
+port = 8180
 api_key = "your-secret-api-key"
 
 [imap]
@@ -39,8 +40,8 @@ func TestLoad_Valid(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if cfg.Server.APIKey != "your-secret-api-key" {
-		t.Fatalf("api_key mismatch: %q", cfg.Server.APIKey)
+	if cfg.Server.Port != 8180 || cfg.Server.APIKey != "your-secret-api-key" {
+		t.Fatalf("server section mismatch: %q", cfg.Server)
 	}
 
 	if cfg.IMAP.Host != "imap.example.com" ||

@@ -33,7 +33,10 @@ func main() {
 		TTL:    5 * time.Minute,
 	})
 
-	log.Fatal(http.ListenAndServe(":8080", srv))
+	port := getEnvInt("BLUESHORTS_SERVER_PORT", cfg.Server.Port)
+	addr := ":" + strconv.Itoa(port)
+	log.Printf("starting blueshorts server, listening on %s", addr)
+	log.Fatal(http.ListenAndServe(addr, srv))
 }
 
 func getEnv(key, fallback string) string {

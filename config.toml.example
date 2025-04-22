@@ -1,4 +1,5 @@
 [server]
+port = 8080
 api_key = "your-secret-api-key"
 
 [imap]

@@ -13,6 +13,7 @@ type IMAPConfig struct {
 
 type Config struct {
 	Server struct {
+		Port   int    `toml:"port"`
 		APIKey string `toml:"api_key"`
 	} `toml:"server"`
 

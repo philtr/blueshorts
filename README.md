@@ -32,6 +32,7 @@ Create a TOML file at `./config.toml` or specify a file path with
 
 ```toml
 [server]
+port = 8080
 api_key = "your-secret-api-key"
 
 [imap]
@@ -56,11 +57,12 @@ values using environment variables. This is useful for containerized deployments
 or secrets management.
 
 - `BLUESHORTS_CONFIG`: path to the config file (defaults to `/data/config.toml`)
+- `BLUESHORTS_SERVER_PORT`: overrides `[server].port`
+- `BLUESHORTS_SERVER_API_KEY`: overrides `[server].api_key`
 - `BLUESHORTS_IMAP_HOST`: overrides `[imap].host`
 - `BLUESHORTS_IMAP_PORT`: overrides `[imap].port`
 - `BLUESHORTS_IMAP_USERNAME`: overrides `[imap].username`
 - `BLUESHORTS_IMAP_PASSWORD`: overrides `[imap].password`
-- `BLUESHORTS_SERVER_API_KEY`: overrides `[server].api_key`
 
 Environment variables take precedence over values from the TOML file.
 
